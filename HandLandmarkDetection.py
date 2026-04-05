@@ -3,7 +3,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import numpy as np
 
-model_path = '/absolute/path/to/gesture_recognizer.task'
+model_path = 'hand_landmarker.task'
 
 BaseOptions = mp.tasks.BaseOptions
 HandLandmarker = mp.tasks.vision.HandLandmarker
