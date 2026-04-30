@@ -60,15 +60,16 @@ mp_hands = mp.tasks.vision.HandLandmarksConnections
 mp_drawing = mp.tasks.vision.drawing_utils
 mp_drawing_styles = mp.tasks.vision.drawing_styles
 
+def store_result(result: GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
+    global latest_result
+    latest_result = result
+
 options = GestureRecognizerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
     running_mode=VisionRunningMode.LIVE_STREAM,
     result_callback=store_result,
     num_hands=2)
 
-def store_result(result: GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
-    global latest_result
-    latest_result = result
 
 def distance_between_points(point1, point2):
     return ((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)**0.5
