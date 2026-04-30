@@ -36,6 +36,10 @@ start_time_ms = time.time_ns() // 1000000
 
 BORDER_VAL = 0.2
 
+screen_window = tk.Tk()
+screen_window.title("Gesture Keyboard")
+screen_window.geometry("1000x400+50+50")
+
 screen_window.configure(bg=BLACK_HEX)
 screen_window.update() # i think this is needed before i change the title bar color for the window
 
@@ -45,10 +49,6 @@ model_path = 'gesture_recognizer.task'
 
 live_stream_cap_width = 640
 live_stream_cap_height = 480
-
-screen_window = tk.Tk()
-screen_window.title("Gesture Keyboard")
-screen_window.geometry("1000x400+50+50")
 
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = mp.tasks.vision.GestureRecognizer
