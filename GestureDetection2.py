@@ -7,12 +7,17 @@ import time
 
 import pyautogui
 import ctypes
+from ctypes import wintypes
 import tkinter as tk
+
+from dataclasses import dataclass
 
 # --- Colors ---
 # -- Extra Screen Window Configure --
 #BLACK = 0x00000000
 BLACK_HEX = "#000000" # Currently Used
+CHARCOAL = 0X00252525
+#CHARCOAL_HEX = #252525
 #LIGHT_GRAY = 0x00D3D3D3
 #LIGHT_GRAY_HEX = "#D3D3D3"
 
@@ -31,12 +36,17 @@ CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
 
 MY_SCREEN_WIDTH, MY_SCREEN_HEIGHT = pyautogui.size()
+print(MY_SCREEN_WIDTH,MY_SCREEN_HEIGHT)
 
 CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH = int(MY_SCREEN_WIDTH/2 - CAMERA_WIDTH/2)
 CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT = int(MY_SCREEN_HEIGHT/2 - CAMERA_HEIGHT/2)
 
-latest_result = None
-latest_gesture = None
+@dataclass
+class GlobalVariables:
+    latest_result: object = None
+    latest_gesture: str = None
+
+gbv = GlobalVariables()
 
 FINGER_CLOSENESS_THRESHOLD = 0.17 # temp number, can change
 MAX_FINGER_CLOSENESS_NUMBER = 0.0000000 # used to check how close the numbers get to threshold
@@ -53,6 +63,11 @@ screen_window.geometry("1000x400+50+50")
 screen_window.configure(bg=BLACK_HEX)
 screen_window.update() # i think this is needed before i change the title bar color for the window
 
+screen_window_id = ctypes.windll.user32.GetParent(screen_window.winfo_id())
+window_title_bar_id = 35
+screen_window_title_color = wintypes.DWORD(CHARCOAL)
+ctypes.windll.dwmapi.DwmSetWindowAttribute(screen_window_id, window_title_bar_id, ctypes.byref(screen_window_title_color), ctypes.sizeof(screen_window_title_color))
+
 gesture_text_to_speech_enable = 0 # won't implement for now but will do it in the future
 
 model_path = 'gesture_recognizer.task'
@@ -68,8 +83,7 @@ mp_drawing = mp.tasks.vision.drawing_utils
 mp_drawing_styles = mp.tasks.vision.drawing_styles
 
 def store_result(result: GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
-    global latest_result
-    latest_result = result
+    gbv.latest_result = result
 
 options = GestureRecognizerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
@@ -90,7 +104,7 @@ def draw_landmarks_on_image(rgb_image, detection_result):
     annotated_image = np.copy(rgb_image)
     gestures_list = detection_result.gestures
 
-    global MAX_FINGER_CLOSENESS_NUMBER, FINGER_CLOSENESS_THRESHOLD, latest_gesture
+    global MAX_FINGER_CLOSENESS_NUMBER, FINGER_CLOSENESS_THRESHOLD
 
     # Loop through the detected hands to visualize.
     for idx in range(len(hand_landmarks_list)):
@@ -133,28 +147,28 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 
                 if normalized_thumb_middle < FINGER_CLOSENESS_THRESHOLD:
                     # action is done if previous and current gesture was pinch
-                    if latest_gesture == "Pinch":
+                    if gbv.latest_gesture == "Pinch":
                         pyautogui.leftClick()
 
-                    latest_gesture = "Pinch"
-                    label = f"{latest_gesture} ({gesture.score:.2f}) ({round(normalized_thumb_index, 2)}) ({round(normalized_thumb_middle, 2)})"
+                    gbv.latest_gesture = "Pinch"
+                    label = f"{gbv.latest_gesture} ({gesture.score:.2f}) ({round(normalized_thumb_index, 2)}) ({round(normalized_thumb_middle, 2)})"
                 else:
-                    latest_gesture = "Okay"
-                    label = f"{latest_gesture} ({gesture.score:.2f}) ({round(normalized_thumb_index, 2)})"
+                    gbv.latest_gesture = "Okay"
+                    label = f"{gbv.latest_gesture} ({gesture.score:.2f}) ({round(normalized_thumb_index, 2)})"
 
                     x_coord_to_move = (x_coordinates[8] - BORDER_VAL) / (1 - 2 * BORDER_VAL)
                     y_coord_to_move = (y_coordinates[8] - BORDER_VAL) / (1 - 2 * BORDER_VAL)
-                    x_move = min(max(x_coord_to_move * 1920, 0), 1920)
-                    y_move = min(max(y_coord_to_move * 1080, 0), 1080)
-                    pyautogui.moveTo(x_move, y_move)
+                    x_move = min(max(x_coord_to_move * MY_SCREEN_WIDTH, 1), MY_SCREEN_WIDTH-1)
+                    y_move = min(max(y_coord_to_move * MY_SCREEN_HEIGHT, 1), MY_SCREEN_HEIGHT-1)
+                    pyautogui.moveTo(x_move, y_move, _pause=False)
 
             elif normalized_thumb_middle < FINGER_CLOSENESS_THRESHOLD:
-                latest_gesture = "Thumb Middle"
-                label = f"{latest_gesture} ({gesture.score:.2f}) ({round(normalized_thumb_middle, 2)})"
+                gbv.latest_gesture = "Thumb Middle"
+                label = f"{gbv.latest_gesture} ({gesture.score:.2f}) ({round(normalized_thumb_middle, 2)})"
             else:
-                latest_gesture = gesture.category_name
+                gbv.latest_gesture = gesture.category_name
         else:
-            latest_gesture = gesture.category_name
+            gbv.latest_gesture = gesture.category_name
 
         # Draw handedness (left or right hand) on the image.
         cv2.putText(annotated_image, label,
@@ -203,8 +217,6 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 cap.set(cv2.CAP_PROP_FPS, 60)
 
 # ==================================================================================================================================================================
-# created to make the frame appear in the center of my screen (1920x1080)
-# (also approximately adjusted for taskbar height)
 cv2.namedWindow("frame")
 cv2.moveWindow("frame", CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH, CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT)
 #cv2.moveWindow("frame", 640,0)
@@ -227,8 +239,8 @@ with GestureRecognizer.create_from_options(options) as recognizer:
 
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
         recognizer.recognize_async(mp_image, frame_timestamp_ms)
-        if latest_result is not None:
-            marked_image = draw_landmarks_on_image(frame, latest_result)
+        if gbv.latest_result is not None:
+            marked_image = draw_landmarks_on_image(frame, gbv.latest_result)
             cv2.imshow("frame", marked_image)
         else:
             cv2.imshow('frame', frame)
