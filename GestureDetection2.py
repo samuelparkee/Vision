@@ -9,12 +9,14 @@ import pyautogui
 import ctypes
 import tkinter as tk
 
+# --- Colors ---
+# -- Extra Screen Window Configure --
+#BLACK = 0x00000000
+BLACK_HEX = "#000000" # Currently Used
+#LIGHT_GRAY = 0x00D3D3D3
+#LIGHT_GRAY_HEX = "#D3D3D3"
 
-BLACK = 0x00000000
-BLACK_HEX = "#000000"
-LIGHT_GRAY = 0x00D3D3D3
-LIGHT_GRAY_HEX = "#D3D3D3"
-
+# -- Hand Landmark Changes --
 PEACH_COLOR = np.array([180, 229, 255])
 ORANGE_COLOR = np.array([0, 128, 255])
 YELLOW_COLOR = np.array([0, 204, 255])
@@ -24,6 +26,14 @@ MARGIN = 10  # pixels
 FONT_SIZE = 1
 FONT_THICKNESS = 1
 HANDEDNESS_TEXT_COLOR = (88, 205, 54)  # vibrant green
+
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
+
+MY_SCREEN_WIDTH, MY_SCREEN_HEIGHT = pyautogui.size()
+
+CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH = int(MY_SCREEN_WIDTH/2 - CAMERA_WIDTH/2)
+CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT = int(MY_SCREEN_HEIGHT/2 - CAMERA_HEIGHT/2)
 
 latest_result = None
 latest_gesture = None
@@ -47,9 +57,6 @@ gesture_text_to_speech_enable = 0 # won't implement for now but will do it in th
 
 model_path = 'gesture_recognizer.task'
 
-live_stream_cap_width = 640
-live_stream_cap_height = 480
-
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = mp.tasks.vision.GestureRecognizer
 GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
@@ -69,7 +76,6 @@ options = GestureRecognizerOptions(
     running_mode=VisionRunningMode.LIVE_STREAM,
     result_callback=store_result,
     num_hands=2)
-
 
 def distance_between_points(point1, point2):
     return ((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)**0.5
@@ -192,21 +198,21 @@ if not cap.isOpened():
     print("Cannot open camera")
     exit()
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, live_stream_cap_width)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, live_stream_cap_height)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 cap.set(cv2.CAP_PROP_FPS, 60)
 
 # ==================================================================================================================================================================
 # created to make the frame appear in the center of my screen (1920x1080)
 # (also approximately adjusted for taskbar height)
 cv2.namedWindow("frame")
-cv2.moveWindow("frame", 640, 250)
+cv2.moveWindow("frame", CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH, CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT)
 #cv2.moveWindow("frame", 640,0)
 
 hwnd = ctypes.windll.user32.FindWindowW(None,"frame")
 style = ctypes.windll.user32.GetWindowLongW(hwnd,-16)
 ctypes.windll.user32.SetWindowLongW(hwnd,-16,style & ~0x00C00000)
-ctypes.windll.user32.SetWindowPos(hwnd,None,640,250,live_stream_cap_width,live_stream_cap_height,0x0027)
+ctypes.windll.user32.SetWindowPos(hwnd,None,CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH,CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT,CAMERA_WIDTH,CAMERA_HEIGHT,0x0027)
 ## ==================================================================================================================================================================
 
 with GestureRecognizer.create_from_options(options) as recognizer:
