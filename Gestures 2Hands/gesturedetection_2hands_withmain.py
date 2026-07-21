@@ -68,8 +68,23 @@ class GlobalVariables:
     latest_gesture: str = None
     keyboard_window_open: bool = False
     gesture_text_to_speech_enable: bool = False # won't implement for now but will do it in the future
+    
+    # Screen Size
+    screen_width: int = None
+    screen_height: int = None
 
 gbv = GlobalVariables()
+
+# ------------------ MEDIAPIPE SETUP ------------------
+BaseOptions = mp.tasks.BaseOptions
+GestureRecognizer = mp.tasks.vision.GestureRecognizer
+GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
+GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+mp_hands = mp.tasks.vision.HandLandmarksConnections
+mp_drawing = mp.tasks.vision.drawing_utils
+mp_drawing_styles = mp.tasks.vision.drawing_styles
 
 # ================================= functions =================================
 # ------------------ FINGER CHECKING ------------------
@@ -147,8 +162,8 @@ def draw_landmarks_on_image(rgb_image, detection_result):
         if gesture.category_name == "Pointing_Up":
             x_coord_to_move = (x_coordinates[8] - BORDER_VAL) / (1 - 2 * BORDER_VAL)
             y_coord_to_move = (y_coordinates[8] - BORDER_VAL) / (1 - 2 * BORDER_VAL)
-            x_move = min(max(x_coord_to_move * MY_SCREEN_WIDTH, 1), MY_SCREEN_WIDTH - 1)
-            y_move = min(max(y_coord_to_move * MY_SCREEN_HEIGHT, 1), MY_SCREEN_HEIGHT - 1)
+            x_move = min(max(x_coord_to_move * gbv.screen_width, 1), gbv.screen_width - 1)
+            y_move = min(max(y_coord_to_move * gbv.screen_height, 1), gbv.screen_height - 1)
             pyautogui.moveTo(x_move, y_move, _pause=False)
 
         elif gesture.category_name == "None":
@@ -256,11 +271,11 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 if __name__ == "__main__":
     start_time_ms = time.time_ns() // 1000000
 
-    MY_SCREEN_WIDTH, MY_SCREEN_HEIGHT = pyautogui.size()
-    print(MY_SCREEN_WIDTH, MY_SCREEN_HEIGHT)
+    gbv.screen_width, gbv.screen_height = pyautogui.size()
+    print(gbv.screen_width, gbv.screen_height)
 
-    CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH = int(MY_SCREEN_WIDTH / 2 - CAMERA_WIDTH / 2)
-    CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT = int(MY_SCREEN_HEIGHT / 2 - CAMERA_HEIGHT / 2)
+    CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH = int(gbv.screen_width / 2 - CAMERA_WIDTH / 2)
+    CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT = int(gbv.screen_height / 2 - CAMERA_HEIGHT / 2)
 
     screen_window = tk.Tk()
     screen_window.title("Gesture Keyboard")
@@ -278,16 +293,6 @@ if __name__ == "__main__":
     ctypes.windll.dwmapi.DwmSetWindowAttribute(screen_window_id, window_title_bar_id,
                                                ctypes.byref(screen_window_title_color),
                                                ctypes.sizeof(screen_window_title_color))
-
-    BaseOptions = mp.tasks.BaseOptions
-    GestureRecognizer = mp.tasks.vision.GestureRecognizer
-    GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
-    GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
-    VisionRunningMode = mp.tasks.vision.RunningMode
-
-    mp_hands = mp.tasks.vision.HandLandmarksConnections
-    mp_drawing = mp.tasks.vision.drawing_utils
-    mp_drawing_styles = mp.tasks.vision.drawing_styles
 
     model_path = 'gesture_recognizer.task'
 
