@@ -13,6 +13,8 @@ import tkinter as tk
 from dataclasses import dataclass
 
 import os
+
+# ================================= CONSTANTS/VARIABLES =================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 KEYBOARD_LABELS_FILE_PATH = os.path.join(SCRIPT_DIR, "keyboard_labels.txt")
 
@@ -24,6 +26,53 @@ FINGER_TIP_JOINT = {
     "pinky": (20,18)
 }
 
+# ------------------ CAMERA ------------------
+# ------ CAMERA DISPLAY SIZE ------
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
+
+# ------ MOUSE POSITION BORDER ------
+MARGIN = 10  # pixels
+BORDER_VAL = 0.2
+
+# ------ FINGER CLOSENESS & POSITION ------
+FINGER_CLOSENESS_THRESHOLD = 0.17 # temp number, can change
+MAX_FINGER_CLOSENESS_NUMBER = 0.0000000 # used to check how close the numbers get to threshold
+finger_position = (0,0)
+
+# ------ TEXT DISPLAY ------
+FONT_SIZE = 1
+FONT_THICKNESS = 1
+HANDEDNESS_TEXT_COLOR = (88, 205, 54)  # vibrant green
+
+# ------------------ Colors ------------------
+# ------ Extra Screen Window Configure ------
+#BLACK = 0x00000000
+BLACK_HEX = "#000000" # Currently Used
+CHARCOAL = 0X00252525
+#CHARCOAL_HEX = #252525
+#LIGHT_GRAY = 0x00D3D3D3
+#LIGHT_GRAY_HEX = "#D3D3D3"
+
+# ------ Hand Landmark Changes ------
+PEACH_COLOR = np.array([180, 229, 255])
+ORANGE_COLOR = np.array([0, 128, 255])
+YELLOW_COLOR = np.array([0, 204, 255])
+PINK_COLOR = np.array([102, 0, 204])
+
+# ------------------ GLOBALS ------------------
+# ------ VARIABLES ------
+@dataclass
+class GlobalVariables:
+    latest_result: object = None
+    latest_gesture: str = None
+    keyboard_window_open: bool = False
+    gesture_text_to_speech_enable: bool = False # won't implement for now but will do it in the future
+
+gbv = GlobalVariables()
+
+# ================================= functions =================================
+# ------------------ FINGER CHECKING ------------------
 def is_finger_up (y_coords, tip_idx, joint_idx):
     # less than because bigger number = lower on monitor
     return y_coords[tip_idx] < y_coords[joint_idx]
@@ -40,58 +89,7 @@ def fingers_curled_except_index(y_coordinates):
         if name != "index"
     )
 
-# --- Colors ---
-# -- Extra Screen Window Configure --
-#BLACK = 0x00000000
-BLACK_HEX = "#000000" # Currently Used
-CHARCOAL = 0X00252525
-#CHARCOAL_HEX = #252525
-#LIGHT_GRAY = 0x00D3D3D3
-#LIGHT_GRAY_HEX = "#D3D3D3"
-
-# -- Hand Landmark Changes --
-PEACH_COLOR = np.array([180, 229, 255])
-ORANGE_COLOR = np.array([0, 128, 255])
-YELLOW_COLOR = np.array([0, 204, 255])
-PINK_COLOR = np.array([102, 0, 204])
-
-MARGIN = 10  # pixels
-FONT_SIZE = 1
-FONT_THICKNESS = 1
-HANDEDNESS_TEXT_COLOR = (88, 205, 54)  # vibrant green
-
-CAMERA_WIDTH = 640
-CAMERA_HEIGHT = 480
-
-MY_SCREEN_WIDTH, MY_SCREEN_HEIGHT = pyautogui.size()
-print(MY_SCREEN_WIDTH,MY_SCREEN_HEIGHT)
-
-CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH = int(MY_SCREEN_WIDTH/2 - CAMERA_WIDTH/2)
-CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT = int(MY_SCREEN_HEIGHT/2 - CAMERA_HEIGHT/2)
-
-@dataclass
-class GlobalVariables:
-    latest_result: object = None
-    latest_gesture: str = None
-    keyboard_window_open: bool = False
-
-gbv = GlobalVariables()
-
-FINGER_CLOSENESS_THRESHOLD = 0.17 # temp number, can change
-MAX_FINGER_CLOSENESS_NUMBER = 0.0000000 # used to check how close the numbers get to threshold
-finger_position = (0,0)
-
-start_time_ms = time.time_ns() // 1000000
-
-BORDER_VAL = 0.2
-
-screen_window = tk.Tk()
-screen_window.title("Gesture Keyboard")
-screen_window.geometry("1000x400+50+50")
-
-screen_window.attributes('-alpha',0.7)
-screen_window.configure(bg=BLACK_HEX)
-
+# ------------------ KEYBOARD ------------------
 #KEYBOARD_LABELS = []
 def get_keyboard_labels(filepath):
     key_labels = []
@@ -99,44 +97,17 @@ def get_keyboard_labels(filepath):
         key_labels = [line.split() for line in f if line.strip()]
     return key_labels
 
-
-screen_window.update() # i think this is needed before i change the title bar color for the window
-screen_window.withdraw() # hides screen_window right after update
-
-screen_window_id = ctypes.windll.user32.GetParent(screen_window.winfo_id())
-window_title_bar_id = 35
-screen_window_title_color = wintypes.DWORD(CHARCOAL)
-ctypes.windll.dwmapi.DwmSetWindowAttribute(screen_window_id, window_title_bar_id, ctypes.byref(screen_window_title_color), ctypes.sizeof(screen_window_title_color))
-
-gesture_text_to_speech_enable = 0 # won't implement for now but will do it in the future
-
-model_path = 'gesture_recognizer.task'
-
-BaseOptions = mp.tasks.BaseOptions
-GestureRecognizer = mp.tasks.vision.GestureRecognizer
-GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
-GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
-VisionRunningMode = mp.tasks.vision.RunningMode
-
-mp_hands = mp.tasks.vision.HandLandmarksConnections
-mp_drawing = mp.tasks.vision.drawing_utils
-mp_drawing_styles = mp.tasks.vision.drawing_styles
-
-def store_result(result: GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
-    gbv.latest_result = result
-
-options = GestureRecognizerOptions(
-    base_options=BaseOptions(model_asset_path=model_path),
-    running_mode=VisionRunningMode.LIVE_STREAM,
-    result_callback=store_result,
-    num_hands=2)
-
-def distance_between_points(point1, point2):
-    return ((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)**0.5
-
+# ------------------ COLOR CHANGE ------------------
 def replace_color(image, old_color, new_color, tolerance=1):
     mask = cv2.inRange(image, old_color-tolerance, old_color+tolerance)
     image[mask > 0] = new_color
+
+# ------------------ GESTURES ------------------
+def store_result(result: GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
+    gbv.latest_result = result
+
+def distance_between_points(point1, point2):
+    return ((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)**0.5
 
 def draw_landmarks_on_image(rgb_image, detection_result):
     hand_landmarks_list = detection_result.hand_landmarks
@@ -267,7 +238,7 @@ def draw_landmarks_on_image(rgb_image, detection_result):
                     gbv.keyboard_window_open = True
             elif not index_up_both_hands and other_fingers_curled_both_hands:
                 label_2h = f"Close Keyboard"
-                if gbv.keyboard_window_opgesturedetection_2hands.pyen:
+                if gbv.keyboard_window_open:
                     screen_window.withdraw()
                     gbv.keyboard_window_open = False
             else:
@@ -282,51 +253,95 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 
     return annotated_image
 
+if __name__ == "__main__":
+    start_time_ms = time.time_ns() // 1000000
 
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Cannot open camera")
-    exit()
+    MY_SCREEN_WIDTH, MY_SCREEN_HEIGHT = pyautogui.size()
+    print(MY_SCREEN_WIDTH, MY_SCREEN_HEIGHT)
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-cap.set(cv2.CAP_PROP_FPS, 60)
+    CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH = int(MY_SCREEN_WIDTH / 2 - CAMERA_WIDTH / 2)
+    CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT = int(MY_SCREEN_HEIGHT / 2 - CAMERA_HEIGHT / 2)
 
-# ==================================================================================================================================================================
-cv2.namedWindow("frame")
-cv2.moveWindow("frame", CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH, CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT)
-#cv2.moveWindow("frame", 640,0)
+    screen_window = tk.Tk()
+    screen_window.title("Gesture Keyboard")
+    screen_window.geometry("1000x400+50+50")
 
-hwnd = ctypes.windll.user32.FindWindowW(None,"frame")
-style = ctypes.windll.user32.GetWindowLongW(hwnd,-16)
-ctypes.windll.user32.SetWindowLongW(hwnd,-16,style & ~0x00C00000)
-ctypes.windll.user32.SetWindowPos(hwnd,None,CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH,CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT,CAMERA_WIDTH,CAMERA_HEIGHT,0x0027)
-## ==================================================================================================================================================================
-try:
-    with GestureRecognizer.create_from_options(options) as recognizer:
-        while True:
-            ret, frame = cap.read()
-            frame = cv2.flip(frame, 1)
-            if not ret:
-                print("Can't receive frame. Exiting...")
-                break
+    screen_window.attributes('-alpha', 0.7)
+    screen_window.configure(bg=BLACK_HEX)
 
-            frame_timestamp_ms = (time.time_ns() // 1000000) - start_time_ms
+    screen_window.update()  # i think this is needed before i change the title bar color for the window
+    screen_window.withdraw()  # hides screen_window right after update
 
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
-            recognizer.recognize_async(mp_image, frame_timestamp_ms)
-            if gbv.latest_result is not None:
-                marked_image = draw_landmarks_on_image(frame, gbv.latest_result)
-                cv2.imshow("frame", marked_image)
-            else:
-                cv2.imshow('frame', frame)
+    screen_window_id = ctypes.windll.user32.GetParent(screen_window.winfo_id())
+    window_title_bar_id = 35
+    screen_window_title_color = wintypes.DWORD(CHARCOAL)
+    ctypes.windll.dwmapi.DwmSetWindowAttribute(screen_window_id, window_title_bar_id,
+                                               ctypes.byref(screen_window_title_color),
+                                               ctypes.sizeof(screen_window_title_color))
 
-            screen_window.update_idletasks()
-            screen_window.update()
+    BaseOptions = mp.tasks.BaseOptions
+    GestureRecognizer = mp.tasks.vision.GestureRecognizer
+    GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
+    GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
+    VisionRunningMode = mp.tasks.vision.RunningMode
 
-            if cv2.waitKey(1) in [ord('q'),ord('Q')]:
-                break
-finally:
-    cap.release()
-    cv2.destroyAllWindows()
-    screen_window.destroy()
+    mp_hands = mp.tasks.vision.HandLandmarksConnections
+    mp_drawing = mp.tasks.vision.drawing_utils
+    mp_drawing_styles = mp.tasks.vision.drawing_styles
+
+    model_path = 'gesture_recognizer.task'
+
+    options = GestureRecognizerOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        running_mode=VisionRunningMode.LIVE_STREAM,
+        result_callback=store_result,
+        num_hands=2)
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Cannot open camera")
+        exit()
+
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+    cap.set(cv2.CAP_PROP_FPS, 60)
+
+    # ==================================================================================================================================================================
+    cv2.namedWindow("frame")
+    cv2.moveWindow("frame", CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH, CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT)
+    # cv2.moveWindow("frame", 640,0)
+
+    hwnd = ctypes.windll.user32.FindWindowW(None, "frame")
+    style = ctypes.windll.user32.GetWindowLongW(hwnd, -16)
+    ctypes.windll.user32.SetWindowLongW(hwnd, -16, style & ~0x00C00000)
+    ctypes.windll.user32.SetWindowPos(hwnd, None, CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH,
+                                      CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT, CAMERA_WIDTH, CAMERA_HEIGHT, 0x0027)
+    ## ==================================================================================================================================================================
+    try:
+        with GestureRecognizer.create_from_options(options) as recognizer:
+            while True:
+                ret, frame = cap.read()
+                frame = cv2.flip(frame, 1)
+                if not ret:
+                    print("Can't receive frame. Exiting...")
+                    break
+
+                frame_timestamp_ms = (time.time_ns() // 1000000) - start_time_ms
+
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+                recognizer.recognize_async(mp_image, frame_timestamp_ms)
+                if gbv.latest_result is not None:
+                    marked_image = draw_landmarks_on_image(frame, gbv.latest_result)
+                    cv2.imshow("frame", marked_image)
+                else:
+                    cv2.imshow('frame', frame)
+
+                screen_window.update_idletasks()
+                screen_window.update()
+
+                if cv2.waitKey(1) in [ord('q'), ord('Q')]:
+                    break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        screen_window.destroy()
