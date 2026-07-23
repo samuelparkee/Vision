@@ -14,16 +14,36 @@ from dataclasses import dataclass
 
 import os
 
+from functools import partial
+
 # ================================= CONSTANTS/VARIABLES =================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 KEYBOARD_LABELS_FILE_PATH = os.path.join(SCRIPT_DIR, "keyboard_labels.txt")
 
-# for Keyboard Gesture
+# ------------------ for Keyboard Gesture ------------------
 FINGER_TIP_JOINT = {
     "index": (8,6),
     "middle": (12,10),
     "ring": (16,14),
     "pinky": (20,18)
+}
+
+# ------------------ Keyboard Size ------------------
+KEYBOARD_ROWS = 6
+KEYBOARD_COLUMNS = 16
+
+KEYBOARD_SPANS = {
+    "SPACE": 6,
+    "ENTER": 2,
+    "SHIFT": 2,
+    "BACKSPACE": 2
+}
+
+KEYBOARD_MODIFIERS = {
+    "ALT":   ("alt_on", "alt"),
+    "CAPS":  ("caps_on", "caps"),
+    "CTRL":  ("control_on", "control"),
+    "SHIFT": ("shift_on", "shift"),
 }
 
 # ------------------ CAMERA ------------------
@@ -73,6 +93,12 @@ class GlobalVariables:
     screen_width: int = None
     screen_height: int = None
 
+    # Keyboard Checks
+    alt_on: bool = False
+    caps_on: bool = False
+    control_on: bool = False
+    shift_on: bool = False
+
 gbv = GlobalVariables()
 
 # ------------------ MEDIAPIPE SETUP ------------------
@@ -106,11 +132,45 @@ def fingers_curled_except_index(y_coordinates):
 
 # ------------------ KEYBOARD ------------------
 #KEYBOARD_LABELS = []
-def get_keyboard_labels(filepath):
+def get_keyboard_labels():
     key_labels = []
-    with open(filepath) as f:
+    with open(KEYBOARD_LABELS_FILE_PATH) as f:
         key_labels = [line.split() for line in f if line.strip()]
     return key_labels
+
+def press_key_with_modifier(key):
+    pressed_modifiers = [
+        pyautogui_key
+        for pressed_mod_name, pyautogui_key in KEYBOARD_MODIFIERS.values()
+        if getattr(gbv,pressed_mod_name)
+    ]
+    for modifiers in pressed_modifiers:
+        pyautogui.keyDown(modifiers)
+
+    pyautogui.press(key)
+
+    for modifiers in pressed_modifiers:
+        pyautogui.keyUp(modifiers)
+
+def do_keyboard_press(key_name):
+    print(key_name)
+    modifier_name = KEYBOARD_MODIFIERS.get(key_name.upper())
+    if modifier_name is not None:
+        mod_name, _ = modifier_name
+        setattr(gbv, mod_name, not getattr(gbv, mod_name))
+        return
+    press_key_with_modifier(key_name)
+
+
+def do_keyboard_placement(window, labels):
+    for i, row in enumerate (labels):
+        col = 0
+        for key_label in row:
+            col_span = KEYBOARD_SPANS.get(key_label,1)
+            #button = tk.Button(window, text=key_label, padx=50,pady=50)
+            button = tk.Button(window, text=key_label, padx=50, pady=50,command=partial(do_keyboard_press,key_label))
+            button.grid(row=i, column=col, columnspan=col_span, sticky="nsew")
+            col += col_span
 
 # ------------------ COLOR CHANGE ------------------
 def replace_color(image, old_color, new_color, tolerance=1):
@@ -283,6 +343,15 @@ if __name__ == "__main__":
 
     screen_window.attributes('-alpha', 0.7)
     screen_window.configure(bg=BLACK_HEX)
+
+    keyboard_labels = get_keyboard_labels()
+
+    for i in range (KEYBOARD_ROWS):
+        screen_window.grid_rowconfigure(i, weight=1)
+    for i in range (KEYBOARD_COLUMNS):
+        screen_window.grid_columnconfigure(i, weight=1)
+
+    do_keyboard_placement(screen_window, keyboard_labels)
 
     screen_window.update()  # i think this is needed before i change the title bar color for the window
     screen_window.withdraw()  # hides screen_window right after update
