@@ -10,7 +10,7 @@ import ctypes
 from ctypes import wintypes
 import tkinter as tk
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import os
 
@@ -19,7 +19,7 @@ from functools import partial
 # ================================= CONSTANTS/VARIABLES =================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 KEYBOARD_LABELS_FILE_PATH = os.path.join(SCRIPT_DIR, "keyboard_labels.txt")
-
+GET_WINDOW_HANDLE_NEXT = 2
 # ------------------ for Keyboard Gesture ------------------
 FINGER_TIP_JOINT = {
     "index": (8,6),
@@ -41,9 +41,12 @@ KEYBOARD_SPANS = {
 
 KEYBOARD_MODIFIERS = {
     "ALT":   ("alt_on", "alt"),
-    "CAPS":  ("caps_on", "caps"),
     "CTRL":  ("control_on", "control"),
     "SHIFT": ("shift_on", "shift"),
+}
+
+SPECIAL_KEYBOARD_BUTTONS = {
+    "CAPS":  ("caps_on", "capslock"),
 }
 
 # ------------------ CAMERA ------------------
@@ -88,6 +91,10 @@ class GlobalVariables:
     latest_gesture: str = None
     keyboard_window_open: bool = False
     gesture_text_to_speech_enable: bool = False # won't implement for now but will do it in the future
+
+    # Window for Typing Onto
+    foreground_window_id: int = None
+    foreground_ignore_ids: set = field(default_factory=set)
     
     # Screen Size
     screen_width: int = None
@@ -95,9 +102,12 @@ class GlobalVariables:
 
     # Keyboard Checks
     alt_on: bool = False
-    caps_on: bool = False
     control_on: bool = False
     shift_on: bool = False
+
+    # Special Keyboard Clicks
+    caps_on: bool = False
+
 
 gbv = GlobalVariables()
 
@@ -113,6 +123,17 @@ mp_drawing = mp.tasks.vision.drawing_utils
 mp_drawing_styles = mp.tasks.vision.drawing_styles
 
 # ================================= functions =================================
+# ------------------ Foreground Window to Type to ------------------
+def find_target_foreground_window():
+    hwnd = ctypes.windll.user32.GetForegroundWindow()
+    while hwnd:
+        if hwnd not in gbv.foreground_ignore_ids and ctypes.windll.user32.IsWindowVisible(hwnd):
+            print(f"returning {hwnd}")
+            return hwnd
+        hwnd = ctypes.windll.user32.GetWindow(hwnd, GET_WINDOW_HANDLE_NEXT)
+    print("returning None")
+    return None
+
 # ------------------ FINGER CHECKING ------------------
 def is_finger_up (y_coords, tip_idx, joint_idx):
     # less than because bigger number = lower on monitor
@@ -139,6 +160,11 @@ def get_keyboard_labels():
     return key_labels
 
 def press_key_with_modifier(key):
+    if gbv.foreground_window_id:
+        ctypes.windll.user32.SetForegroundWindow(gbv.foreground_window_id)
+        print(gbv.foreground_window_id)
+    print(gbv.foreground_window_id)
+
     pressed_modifiers = [
         pyautogui_key
         for pressed_mod_name, pyautogui_key in KEYBOARD_MODIFIERS.values()
@@ -147,7 +173,11 @@ def press_key_with_modifier(key):
     for modifiers in pressed_modifiers:
         pyautogui.keyDown(modifiers)
 
-    pyautogui.press(key)
+    if key in SPECIAL_KEYBOARD_BUTTONS:
+        pyautogui.press(SPECIAL_KEYBOARD_BUTTONS[key][1])
+    else:
+        pyautogui.press(key.lower())
+        print(f"pressed {key.lower()}")
 
     for modifiers in pressed_modifiers:
         pyautogui.keyUp(modifiers)
@@ -309,6 +339,7 @@ def draw_landmarks_on_image(rgb_image, detection_result):
             if index_up_both_hands and other_fingers_curled_both_hands:
                 label_2h = f"Keyboard"
                 if not gbv.keyboard_window_open:
+                    gbv.foreground_window_id = find_target_foreground_window()
                     screen_window.deiconify()
                     gbv.keyboard_window_open = True
             elif not index_up_both_hands and other_fingers_curled_both_hands:
@@ -353,6 +384,8 @@ if __name__ == "__main__":
 
     do_keyboard_placement(screen_window, keyboard_labels)
 
+    screen_window.attributes('-topmost', True)
+
     screen_window.update()  # i think this is needed before i change the title bar color for the window
     screen_window.withdraw()  # hides screen_window right after update
 
@@ -390,6 +423,8 @@ if __name__ == "__main__":
     ctypes.windll.user32.SetWindowLongW(hwnd, -16, style & ~0x00C00000)
     ctypes.windll.user32.SetWindowPos(hwnd, None, CAMERA_WINDOW_TOP_LEFT_POINT_WIDTH,
                                       CAMERA_WINDOW_TOP_LEFT_POINT_HEIGHT, CAMERA_WIDTH, CAMERA_HEIGHT, 0x0027)
+
+    gbv.foreground_ignore_ids = {screen_window_id, hwnd}
     ## ==================================================================================================================================================================
     try:
         with GestureRecognizer.create_from_options(options) as recognizer:

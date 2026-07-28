@@ -4,4 +4,4 @@ ESC F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 DEL
 TAB q w e r t y u i o p [ ] \
 CAPS a s d f g h j k l ; ' ENTER
 SHIFT z x c v b n m , . / SHIFT
-CTRL WIN ALT SPACE ALT WIN LIST CTRL
+CTRL WIN ALT SPACE ALT WIN APPS CTRL
