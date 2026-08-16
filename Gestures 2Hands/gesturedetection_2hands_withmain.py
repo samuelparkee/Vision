@@ -128,10 +128,10 @@ def find_target_foreground_window():
     hwnd = ctypes.windll.user32.GetForegroundWindow()
     while hwnd:
         if hwnd not in gbv.foreground_ignore_ids and ctypes.windll.user32.IsWindowVisible(hwnd):
-            print(f"returning {hwnd}")
+            print(f"Target Foreground Window Found: Returning {hwnd}")
             return hwnd
         hwnd = ctypes.windll.user32.GetWindow(hwnd, GET_WINDOW_HANDLE_NEXT)
-    print("returning None")
+    print("Target Foreground Window Not Found: Returning None")
     return None
 
 # ------------------ FINGER CHECKING ------------------
@@ -162,14 +162,15 @@ def get_keyboard_labels():
 def press_key_with_modifier(key):
     if gbv.foreground_window_id:
         ctypes.windll.user32.SetForegroundWindow(gbv.foreground_window_id)
-        print(gbv.foreground_window_id)
-    print(gbv.foreground_window_id)
+        #print(f"press_key_with_modifier if: {gbv.foreground_window_id}")
+    #print(f"press_key_with_modifier after if: {gbv.foreground_window_id}")
 
     pressed_modifiers = [
         pyautogui_key
         for pressed_mod_name, pyautogui_key in KEYBOARD_MODIFIERS.values()
         if getattr(gbv,pressed_mod_name)
     ]
+
     for modifiers in pressed_modifiers:
         pyautogui.keyDown(modifiers)
 
