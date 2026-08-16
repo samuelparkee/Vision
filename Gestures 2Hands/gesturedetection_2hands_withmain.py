@@ -162,8 +162,6 @@ def get_keyboard_labels():
 def press_key_with_modifier(key):
     if gbv.foreground_window_id:
         ctypes.windll.user32.SetForegroundWindow(gbv.foreground_window_id)
-        #print(f"press_key_with_modifier if: {gbv.foreground_window_id}")
-    #print(f"press_key_with_modifier after if: {gbv.foreground_window_id}")
 
     pressed_modifiers = [
         pyautogui_key
